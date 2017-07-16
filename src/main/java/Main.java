@@ -11,13 +11,18 @@ import java.util.stream.Stream;
 
 public class Main {
     public static void main (String args[]) {
-	Map<Pair<Integer,Character>, Double> emissions = buildEmissions();
 	List<String> test = new ArrayList<>();
 	List<String> testSet = new ArrayList<>();
 	String fileName = "";
     int[] array = new Random().ints(50, 0, 386609).toArray();
+    ArrayList<Character> sigma
+                = new ArrayList<>(
+                "qwertyuioplkjhgfdsazxcvbnm1234567890".chars()
+                        .mapToObj(c -> (char) c)
+                        .collect(Collectors.toList()));
 
-	try (Stream<String> stream = Files.lines(Paths.get(fileName))) {
+
+    try (Stream<String> stream = Files.lines(Paths.get(fileName))) {
                 test = stream.collect(Collectors.toList());
 	} catch (IOException e) {
 	    e.printStackTrace();
@@ -32,10 +37,10 @@ public class Main {
 
 
 	
-	HiddenMarkovModel hmm = StonModels.build("C", 4,3, emissions);
+	HiddenMarkovModel hmm = StonModels.build("C", 7,3, sigma);
 	System.out.println(testSet);
 	System.out.println("Training");
-	hmm.train(testSet, 20);
+	hmm.train(testSet, 1);
 	hmm.print();
     }
 
