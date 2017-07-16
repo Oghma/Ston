@@ -32,6 +32,9 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     /** Emission probabilities */
     private Map<Pair<Integer, Character>, Double> emissionMatrix;
 
+    /** Smoothing variable */
+    private double smooth[];
+
     /** Initializes an HiddenMarkovModelC.
      @param numPrefixes number of prefix states
      @param numSuffixes number of suffix states
@@ -123,13 +126,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
             /* Re-estimation of transition probabilities */
                 for (int i = 0; i < numStates; i++) {
                     for (int j = 0; j < numStates; j++) {
-                        double num = 0;
-                        double denom = 0;
-                        for (int t = 0; t <= observation.length() - 1; t++) {
-                            num += epsilon(t, i, j, observation, forward, backward);
-                            denom += gamma(i, t, forward, backward);
-                        }
-                        transitionM[i][j] = divide(num, denom);
+                        transitionM[i][j] = epsilon(i, j, observation, forward, backward);
                     }
                 }
       
@@ -138,7 +135,6 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
                     for (int k = 0; k < sigmaSize; k++) {
                         double num = 0;
                         double denom = 0;
-
                         for (int t = 0; t <= observation.length() - 1; t++) {
                             double g = gamma(i, t, forward, backward);
                             num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
@@ -163,10 +159,16 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     private double[][] forwardProc(String observation) {
         int lenObs = observation.length();
         double[][] forward = new double[numStates][lenObs];
-        
+        smooth = new double[lenObs];
+
     /* Initialization (time 0) */
-        for (int i = 0; i < numStates; i++)
+        for (int i = 0; i < numStates; i++) {
             forward[i][0] = initialProbabilities[i] * emissionMatrix.get(new Pair<>(i, observation.charAt(0)));
+            smooth[0] += forward[i][0];
+        }
+
+        for (int i = 0; i < numStates; i++)
+            forward[i][0] = divide(forward[i][0], smooth[0]);
 
     /* Induction */
         for (int t = 0; t <= lenObs - 2; t++) {
@@ -175,7 +177,11 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
                 for (int i = 0; i < numStates; i++)
                     forward[j][t+1] += (forward[i][t] * transitionMatrix[i][j]);
                 forward[j][t+1] *= emissionMatrix.get(new Pair<>(j, observation.charAt(t + 1)));
+                smooth[t+1] += forward[j][t+1];
             }
+
+            for(int i = 0; i < numStates; i++)
+                forward[i][t+1] = divide(forward[i][t+1], smooth[t+1]);
         }
 
         return forward;
@@ -201,7 +207,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
                 backward[i][t] = 0;
                 for (int j = 0; j < numStates; j++)
                     backward[i][t] += (backward[j][t+1] * transitionMatrix[i][j] * emissionMatrix.get(new Pair<>(j, observable.charAt(t + 1))));
-
+                backward[i][t] = divide(backward[i][t], smooth[t+1]);
             }
         }
 
@@ -209,26 +215,27 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     }
 
     /** Calculation of probability P(X_t = s_i, X_t+1 = s_j | O, m).
-     @param t time t
      @param i the number of state s_i
      @param j the number of state s_j
-     @param observable an output sequence o
+     @param observation an output sequence o
      @param forward the Forward-Variables
      @param backward the Backward-Variables
      @return epsilon of the state s_i
      */
-    private double epsilon(int t, int i, int j, String observable, double[][] forward, double[][] backward) {
-        double num;
-        if (t == observable.length() - 1)
-            num = forward[i][t] * transitionMatrix[i][j];
-        else
-            num = forward[i][t] * transitionMatrix[i][j] * emissionMatrix.get(new Pair<>(j, observable.charAt(t + 1))) * backward[j][t+1];
-
+    private double epsilon(int i, int j, String observation, double[][] forward, double[][] backward) {
+        double num = 0;
         double denom = 0;
+        int lenObs = observation.length();
 
-        for (int k = 0; k < numStates; k++)
-            denom += (forward[k][t] * backward[k][t]);
+        for(int t = 0; t < lenObs - 1; t++) {
+            num += forward[i][t] * transitionMatrix[i][j] * emissionMatrix.get(new Pair<>(j, observation.charAt(t + 1))) * backward[j][t+1];
+        }
 
+        for(int t = 0; t < lenObs - 1; t++) {
+            for(int k = 0; k < numStates; k++) {
+                denom += forward[i][t] * transitionMatrix[i][k] * emissionMatrix.get(new Pair<>(k, observation.charAt(t + 1))) * backward[k][t+1];
+            }
+        }
         return divide(num, denom);
     }
 
