@@ -5,6 +5,7 @@
 import javafx.util.Pair;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class HiddenMarkovModelC implements HiddenMarkovModel {
     /** Number of states */
@@ -16,30 +17,38 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     /** Number of suffix states */
     private int numSuffixes;
 
-    /** initial state probabilities */
+    /** Length of sigma */
+    private int sigmaSize;
+
+    /** Sigma */
+    private List<Character> sigma;
+
+    /** Initial state probabilities */
     private double initialProbabilities[];
 
-    /** transition probabilities */
+    /** Transition probabilities */
     private double transitionMatrix[][];
 
-    /** emission probabilities */
+    /** Emission probabilities */
     private Map<Pair<Integer, Character>, Double> emissionMatrix;
 
     /** Initializes an HiddenMarkovModelC.
      @param numPrefixes number of prefix states
      @param numSuffixes number of suffix states
+     @param sigma the alphabet
      @param emissions emission matrix
      */
-    public HiddenMarkovModelC(int numPrefixes, int numSuffixes, Map<Pair<Integer, Character>, Double> emissions) {
-        this(numPrefixes, numSuffixes);
+    public HiddenMarkovModelC(int numPrefixes, int numSuffixes, List<Character> sigma, Map<Pair<Integer, Character>, Double> emissions) {
+        this(numPrefixes, numSuffixes, sigma);
         this.emissionMatrix = emissions;
     }
 
     /** Initializes an HiddenMarkovModelC.
      @param numPrefixes number of prefix states
      @param numSuffixes number of suffix states
+     @param sigma the alphabet
      */
-    public HiddenMarkovModelC(int numPrefixes, int numSuffixes) {
+    public HiddenMarkovModelC(int numPrefixes, int numSuffixes, List<Character> sigma) {
         this.numPrefixes = numPrefixes;
         this.numSuffixes = numSuffixes;
         this.numStates = numPrefixes + numSuffixes;
@@ -47,17 +56,11 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
         this.initialProbabilities = new double[numStates];
         this.transitionMatrix = new double[numStates][numStates];
         this.emissionMatrix = new LinkedHashMap<>();
+        this.sigma = new ArrayList<>(sigma);
 
         /* Initialize the parameter initialProbability */
         double initialProbability = 1.0 / (numPrefixes - 2);
         Arrays.fill(this.initialProbabilities, 0, numPrefixes - 2, initialProbability);
-
-        /* Initialize the parameter transitionMatrix */
-        initialProbability = 1.0 / numStates;
-        /*for (int i = 0; i < numStates; i++) {
-            for (int j = 0; j < numStates; j++)
-                this.transitionMatrix[i][j] = initialProbability;
-        }*/
 
         for (int i = 0; i < numPrefixes - 2; i++) {
             this.transitionMatrix[i][i] = 0.5;
@@ -66,6 +69,17 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
 
         for (int i = numPrefixes - 2; i < numStates - 1; i++) {
             this.transitionMatrix[i][i + 1] = 1;
+        }
+
+        /* Initializes the emission probabilities */
+        this.sigmaSize = sigma.size();
+        double emissionProbability = 1.0 / sigmaSize;
+
+
+        for (int i = 0; i < numStates; i++) {
+            for(Character c: sigma) {
+                emissionMatrix.put(new Pair<>(i, c), emissionProbability);
+            }
         }
 
     }
@@ -88,12 +102,15 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
         double transitionM [][] = new double[numStates][numStates];
         Map<Pair<Integer, Character>, Double> emissionM = new LinkedHashMap<>();
 
-        /* Initialize the emissionsMatrix if empty */
-        if(this.emissionMatrix.isEmpty())
-            initializeEmissions();
+        // WIP
+        String observation = ArrayList.class.cast(observations).stream().map(Object::toString)
+                .collect(Collectors.joining("")).toString();
+                //String.join("", ArrayList.class.cast(observations));
 
-        for (Object obs: ArrayList.class.cast(observations)) {
-                String observation = obs.toString();
+
+        for (int s = 0; s < steps; s++) {
+        //for (Object obs: ArrayList.class.cast(observations)) {
+                //String observation = obs.toString();
 
             /* Calculation of Forward and Backward variables */
                 forward = forwardProc(observation);
@@ -118,16 +135,16 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
       
             /* Re-estimation of emission probabilities */
                 for (int i = 0; i < numStates; i++) {
-                    for (int k = 0; k < observation.length(); k++) {
+                    for (int k = 0; k < sigmaSize; k++) {
                         double num = 0;
                         double denom = 0;
 
                         for (int t = 0; t <= observation.length() - 1; t++) {
                             double g = gamma(i, t, forward, backward);
-                            num += g * (observation.charAt(k) == observation.charAt(t) ? 1 : 0);
+                            num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
                             denom += g;
                         }
-                        emissionM.put(new Pair<>(i, observation.charAt(k)), divide(num, denom));
+                        emissionM.put(new Pair<>(i, sigma.get(k)), divide(num, denom));
                     }
                 }
                 initialProbabilities = initialP;
@@ -191,7 +208,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
         return backward;
     }
 
-    /** calculation of probability P(X_t = s_i, X_t+1 = s_j | O, m).
+    /** Calculation of probability P(X_t = s_i, X_t+1 = s_j | O, m).
      @param t time t
      @param i the number of state s_i
      @param j the number of state s_j
@@ -232,7 +249,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
         return divide(num, denom);
     }
 
-    /** prints all the parameters of an HiddenMarkovModelC */
+    /** Prints all the parameters of an HiddenMarkovModelC */
     public void print() {
         DecimalFormat fmt = new DecimalFormat();
         fmt.setMinimumFractionDigits(20);
@@ -262,9 +279,5 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
             return 0;
         else
             return n / d;
-    }
-
-    private void initializeEmissions() {
-        //TODO Write method
     }
 }
