@@ -14,7 +14,7 @@ public class Main {
 	List<String> test = new ArrayList<>();
 	List<String> testSet = new ArrayList<>();
 	String fileName = "";
-    int[] array = new Random().ints(50, 0, 386609).toArray();
+    int[] array = new Random().ints(10, 0, 386609).toArray();
     ArrayList<Character> sigma
                 = new ArrayList<>(
                 "qwertyuioplkjhgfdsazxcvbnm1234567890".chars()
@@ -37,11 +37,12 @@ public class Main {
 
 
 	
-	HiddenMarkovModel hmm = StonModels.build("C", 7,3, sigma);
+	HiddenMarkovModel hmm = StonModels.build("C", 5,1, sigma);
 	System.out.println(testSet);
 	System.out.println("Training");
 	hmm.train(testSet, 1);
 	hmm.print();
+    System.out.println(hmm.decode("informatica"));
     }
 
     static Map<Pair<Integer,Character>, Double>  buildEmissions() {

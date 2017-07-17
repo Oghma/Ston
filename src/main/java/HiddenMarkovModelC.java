@@ -149,6 +149,53 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
             }
     }
 
+    public String decode(String observation) {
+        int lenObs = observation.length();
+        double delta[][] = new double[numStates][lenObs];
+        int path[] = new int[lenObs];
+        double maxProb = -100000;
+
+        Arrays.fill(path, -1);
+
+        delta[0][0] = Math.log(initialProbabilities[0]) + Math.log(emissionMatrix.get(new Pair<>(0, observation.charAt(0))));
+        maxProb = delta[0][0];
+        path[0] = 0;
+        for(int i = 1; i < numStates; i++) {
+            delta[i][0] = Math.log(initialProbabilities[i]) + Math.log(emissionMatrix.get(new Pair<>(i, observation.charAt(0))));
+            if(delta[i][0] > maxProb) {
+                path[0] = i;
+                maxProb = delta[i][0];
+            }
+        }
+
+        for(int t = 1; t < lenObs; t++) {
+            delta[0][t] = delta[0][t-1] + Math.log(transitionMatrix[0][0]) + Math.log(emissionMatrix.get(new Pair<>(0, observation.charAt(t))));
+            path[t] = 0;
+            for(int i = 1; i < numStates; i++) {
+                double prob = delta[i][t-1] + Math.log(transitionMatrix[i][0]) + Math.log(emissionMatrix.get(new Pair<>(0, observation.charAt(t))));
+                if(prob > delta[0][t]) {
+                    delta[0][t] = prob;
+                }
+            }
+            maxProb = delta[0][t];
+            path[t] = 0;
+
+            for(int j = 1; j < numStates; j++) {
+                delta[j][t] = delta[0][t - 1] + Math.log(transitionMatrix[0][j]) + Math.log(emissionMatrix.get(new Pair<>(j, observation.charAt(t))));
+                for (int i = 1; i < numStates; i++) {
+                    double prob = delta[i][t - 1] + Math.log(transitionMatrix[i][j]) + Math.log(emissionMatrix.get(new Pair<>(j, observation.charAt(t))));
+                    if (prob > delta[j][t]) {
+                        delta[j][t] = prob;
+                    }
+                }
+                if (delta[j][t] > maxProb)
+                    path[t] = j;
+            }
+        }
+
+
+        return Arrays.toString(path);
+    }
 
     /** Calculation of Forward-Variables f(i,t) for state i at time
      t for output sequence O with the current HiddenMarkovModelC parameters
