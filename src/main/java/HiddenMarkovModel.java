@@ -1,7 +1,12 @@
+import java.util.List;
+
 public interface HiddenMarkovModel {
 
-    public <T> void train(T data);
-    public <T> void train(T data, int steps);
-    public void print();
-    public String decode(String observation);
+  public void train(List<String> data);
+
+  public void train(List<String> data, int steps);
+
+  public void print();
+
+  public String decode(String observation);
 }
