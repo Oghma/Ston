@@ -99,7 +99,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
    *
    * @param observations the training set
    */
-  public <T> void train(T observations) {
+  public void train(List<String> observations) {
     train(observations, 1);
   }
   /**
@@ -108,7 +108,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
    * @param observations the training set
    * @param steps the number of steps
    */
-  public <T> void train(T observations, int steps) {
+  public void train(List<String> observations, int steps) {
     double forward[][];
     double backward[][];
 
@@ -116,54 +116,44 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     double transitionM[][] = new double[numStates][numStates];
     Map<Pair<Integer, Character>, Double> emissionM = new LinkedHashMap<>();
 
-    // WIP
-    String observation =
-        ArrayList.class
-            .cast(observations)
-            .stream()
-            .map(Object::toString)
-            .collect(Collectors.joining(""))
-            .toString();
-    //String.join("", ArrayList.class.cast(observations));
+    for (String observation : observations) {
+      for (int s = 0; s < steps; s++) {
+        /* Calculation of Forward and Backward variables */
+        forward = forwardProc(observation);
+        backward = backwardProc(observation);
 
-    for (int s = 0; s < steps; s++) {
-      //for (Object obs: ArrayList.class.cast(observations)) {
-      //String observation = obs.toString();
+        /* Re-estimation of initial state probabilities */
+        for (int i = 0; i < numStates; i++) initialP[i] = gamma(i, 0, forward, backward);
 
-      /* Calculation of Forward and Backward variables */
-      forward = forwardProc(observation);
-      backward = backwardProc(observation);
-
-      /* Re-estimation of initial state probabilities */
-      for (int i = 0; i < numStates; i++) initialP[i] = gamma(i, 0, forward, backward);
-
-      /* Re-estimation of transition probabilities */
-      for (int i = 0; i < numStates; i++) {
-        for (int j = 0; j < numStates; j++) {
-          transitionM[i][j] = epsilon(i, j, observation, forward, backward);
-        }
-      }
-
-      /* Re-estimation of emission probabilities */
-      for (int i = 0; i < numStates; i++) {
-        for (int k = 0; k < sigmaSize; k++) {
-          double num = 0;
-          double denom = 0;
-          for (int t = 0; t <= observation.length() - 1; t++) {
-            double g = gamma(i, t, forward, backward);
-            num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
-            denom += g;
+        /* Re-estimation of transition probabilities */
+        for (int i = 0; i < numStates; i++) {
+          for (int j = 0; j < numStates; j++) {
+            transitionM[i][j] = epsilon(i, j, observation, forward, backward);
           }
-          emissionM.put(new Pair<Integer, Character>(i, sigma.get(k)), divide(num, denom));
         }
+
+        /* Re-estimation of emission probabilities */
+        for (int i = 0; i < numStates; i++) {
+          for (int k = 0; k < sigmaSize; k++) {
+            double num = 0;
+            double denom = 0;
+            for (int t = 0; t <= observation.length() - 1; t++) {
+              double g = gamma(i, t, forward, backward);
+              num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
+              denom += g;
+            }
+            emissionM.put(new Pair<Integer, Character>(i, sigma.get(k)), divide(num, denom));
+          }
+        }
+        initialProbabilities = initialP;
+        transitionMatrix = transitionM;
+        emissionMatrix.putAll(emissionM);
       }
-      initialProbabilities = initialP;
-      transitionMatrix = transitionM;
-      emissionMatrix.putAll(emissionM);
     }
   }
 
-  public String decode(String observation) {
+  public String decode(String data) {
+    String observation = data.toString();
     int lenObs = observation.length();
     double delta[][] = new double[numStates][lenObs];
     int path[] = new int[lenObs];
