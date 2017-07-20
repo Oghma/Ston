@@ -3,10 +3,14 @@
  *
  * @author Matteo Lisotto (matteo.lisotto@gmail.com)
  */
+import java.util.Arrays;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import javafx.util.Pair;
 import java.text.DecimalFormat;
-import java.util.*;
 import java.util.stream.Collectors;
+import java.util.List;
+import java.util.ArrayList;
 
 public class HiddenMarkovModelC implements HiddenMarkovModel {
   /** Number of states */
@@ -152,15 +156,22 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     }
   }
 
-  public String decode(String data) {
-    String observation = data.toString();
+  /**
+   * Decodes the Trains the Hidden Markov Model using the Baum-Welch Algorithms.
+   *
+   * @param observation the string to stem
+   * @return string the stemmed string
+   */
+  public String decode(String observation) {
     int lenObs = observation.length();
     double delta[][] = new double[numStates][lenObs];
     int path[] = new int[lenObs];
     double maxProb = -100000;
+    int stemPosition;
 
     Arrays.fill(path, -1);
 
+    /* Calculate delta at time 0. At first finds the maxProb */
     delta[0][0] =
         Math.log(initialProbabilities[0])
             + Math.log(emissionMatrix.get(new Pair<Integer, Character>(0, observation.charAt(0))));
@@ -177,6 +188,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
       }
     }
 
+    /* Induction */
     for (int t = 1; t < lenObs; t++) {
       delta[0][t] =
           delta[0][t - 1]
@@ -217,7 +229,8 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
       }
     }
 
-    return Arrays.toString(path);
+    stemPosition = Arrays.asList(path).indexOf(numPrefixes);
+    return stemPosition != -1 ? observation.substring(0, numPrefixes) : observation;
   }
 
   /**
