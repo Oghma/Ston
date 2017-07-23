@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 import java.util.List;
 import java.util.ArrayList;
 
-public class HiddenMarkovModelC implements HiddenMarkovModel {
+public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
   /** Number of states */
   private int numStates;
 
@@ -40,15 +40,18 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
   /** Smoothing variable */
   private double smooth[];
 
+  /** Emissions sums */
+  private double emissionsSums[];
+
   /**
-   * Initializes an HiddenMarkovModelC.
+   * Initializes an HiddenMarkovModelCSmoothed.
    *
    * @param numPrefixes number of prefix states
    * @param numSuffixes number of suffix states
    * @param sigma the alphabet
    * @param emissions emission matrix
    */
-  public HiddenMarkovModelC(
+  public HiddenMarkovModelCSmoothed(
       int numPrefixes,
       int numSuffixes,
       List<Character> sigma,
@@ -58,13 +61,13 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
   }
 
   /**
-   * Initializes an HiddenMarkovModelC.
+   * Initializes an HiddenMarkovModelCSmoothed.
    *
    * @param numPrefixes number of prefix states
    * @param numSuffixes number of suffix states
    * @param sigma the alphabet
    */
-  public HiddenMarkovModelC(int numPrefixes, int numSuffixes, List<Character> sigma) {
+  public HiddenMarkovModelCSmoothed(int numPrefixes, int numSuffixes, List<Character> sigma) {
     this.numPrefixes = numPrefixes;
     this.numSuffixes = numSuffixes;
     this.numStates = numPrefixes + numSuffixes;
@@ -94,6 +97,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     for (int i = 0; i < numStates; i++) {
       for (Character c : sigma) {
         emissionMatrix.put(new Pair<Integer, Character>(i, c), emissionProbability);
+	emissionsSums[i] += emissionProbability;
       }
     }
   }
@@ -143,10 +147,13 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
             double denom = 0;
             for (int t = 0; t <= observation.length() - 1; t++) {
               double g = gamma(i, t, forward, backward);
-              num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
+              //num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
+	      num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
               denom += g;
             }
-            emissionM.put(new Pair<Integer, Character>(i, sigma.get(k)), divide(num, denom));
+	    double newEmission = divide(num, denom);
+	    emissionsSums[i] = emissionsSums - emissions.get(new Pair<Integer, Character>(i, sigma.get(k)) + newEmission;
+            emissionM.put(new Pair<Integer, Character>(i, sigma.get(k)), divide(newEmission, emissionsSums[i]));
           }
         }
         initialProbabilities = initialP;
@@ -235,7 +242,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
 
   /**
    * Calculation of Forward-Variables f(i,t) for state i at time t for output sequence O with the
-   * current HiddenMarkovModelC parameters
+   * current HiddenMarkovModelCSmoothed parameters
    *
    * @param observation the output sequence O
    * @return an array f(i,t) over states and times, containing the Forward-variables.
@@ -275,7 +282,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
 
   /**
    * Calculation of Backward-Variables b(i,t) for state i at time t for output sequence O with the
-   * current HiddenMarkovModelC parameters
+   * current HiddenMarkovModelCSmoothed parameters
    *
    * @param observable the output sequence O
    * @return an array b(i,t) over states and times, containing the Backward-Variables.
@@ -357,7 +364,7 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
     return divide(num, denom);
   }
 
-  /** Prints all the parameters of an HiddenMarkovModelC */
+  /** Prints all the parameters of an HiddenMarkovModelCSmoothed */
   public void print() {
     DecimalFormat fmt = new DecimalFormat();
     fmt.setMinimumFractionDigits(20);
