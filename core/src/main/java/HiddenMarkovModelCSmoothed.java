@@ -49,23 +49,6 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
    * @param numPrefixes number of prefix states
    * @param numSuffixes number of suffix states
    * @param sigma the alphabet
-   * @param emissions emission matrix
-   */
-  public HiddenMarkovModelCSmoothed(
-      int numPrefixes,
-      int numSuffixes,
-      List<Character> sigma,
-      Map<Pair<Integer, Character>, Double> emissions) {
-    this(numPrefixes, numSuffixes, sigma);
-    this.emissionMatrix = emissions;
-  }
-
-  /**
-   * Initializes an HiddenMarkovModelCSmoothed.
-   *
-   * @param numPrefixes number of prefix states
-   * @param numSuffixes number of suffix states
-   * @param sigma the alphabet
    */
   public HiddenMarkovModelCSmoothed(int numPrefixes, int numSuffixes, List<Character> sigma) {
     this.numPrefixes = numPrefixes;
@@ -97,7 +80,7 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
     for (int i = 0; i < numStates; i++) {
       for (Character c : sigma) {
         emissionMatrix.put(new Pair<Integer, Character>(i, c), emissionProbability);
-	emissionsSums[i] += emissionProbability;
+        emissionsSums[i] += emissionProbability;
       }
     }
   }
@@ -148,12 +131,14 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
             for (int t = 0; t <= observation.length() - 1; t++) {
               double g = gamma(i, t, forward, backward);
               //num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
-	      num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
+              num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
               denom += g;
             }
-	    double newEmission = divide(num, denom);
-	    //emissionsSums[i] = emissionsSums - emissions.get(new Pair<Integer, Character>(i, sigma.get(k)) + newEmission;
-            emissionM.put(new Pair<Integer, Character>(i, sigma.get(k)), divide(newEmission, emissionsSums[i]));
+            double newEmission = divide(num, denom);
+            //emissionsSums[i] = emissionsSums - emissions.get(new Pair<Integer, Character>(i, sigma.get(k)) + newEmission;
+            emissionM.put(
+                new Pair<Integer, Character>(i, sigma.get(k)),
+                divide(newEmission, emissionsSums[i]));
           }
         }
         initialProbabilities = initialP;
