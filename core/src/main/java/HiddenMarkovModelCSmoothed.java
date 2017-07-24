@@ -152,7 +152,7 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
               denom += g;
             }
 	    double newEmission = divide(num, denom);
-	    emissionsSums[i] = emissionsSums - emissions.get(new Pair<Integer, Character>(i, sigma.get(k)) + newEmission;
+	    //emissionsSums[i] = emissionsSums - emissions.get(new Pair<Integer, Character>(i, sigma.get(k)) + newEmission;
             emissionM.put(new Pair<Integer, Character>(i, sigma.get(k)), divide(newEmission, emissionsSums[i]));
           }
         }
