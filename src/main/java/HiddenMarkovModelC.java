@@ -43,23 +43,6 @@ public class HiddenMarkovModelC implements HiddenMarkovModel {
    * @param numPrefixes number of prefix states
    * @param numSuffixes number of suffix states
    * @param sigma the alphabet
-   * @param emissions emission matrix
-   */
-  public HiddenMarkovModelC(
-      int numPrefixes,
-      int numSuffixes,
-      List<Character> sigma,
-      Map<Pair<Integer, Character>, Double> emissions) {
-    this(numPrefixes, numSuffixes, sigma);
-    this.emissionMatrix = emissions;
-  }
-
-  /**
-   * Initializes an HiddenMarkovModelC.
-   *
-   * @param numPrefixes number of prefix states
-   * @param numSuffixes number of suffix states
-   * @param sigma the alphabet
    */
   public HiddenMarkovModelC(int numPrefixes, int numSuffixes, List<Character> sigma) {
     this.numPrefixes = numPrefixes;
