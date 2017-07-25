@@ -38,7 +38,7 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
   private Map<Pair<Integer, Character>, Double> emissionMatrix;
 
   /** Smoothing variable */
-  private double smooth[];
+  private List<Double[]> smooth;
 
   /** Emissions sums */
   private double emissionsSums[];
@@ -59,6 +59,7 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
     this.transitionMatrix = new double[numStates][numStates];
     this.emissionMatrix = new LinkedHashMap<>();
     this.sigma = new ArrayList<>(sigma);
+    this.smooth = new ArrayList<Double[]>();
 
     /* Initialize the parameter initialProbability */
     double initialProbability = 1.0 / (numPrefixes - 2);
@@ -78,10 +79,8 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
     double emissionProbability = 1.0 / sigmaSize;
 
     for (int i = 0; i < numStates; i++) {
-      for (Character c : sigma) {
+      for (Character c : sigma)
         emissionMatrix.put(new Pair<Integer, Character>(i, c), emissionProbability);
-        emissionsSums[i] += emissionProbability;
-      }
     }
   }
 
@@ -100,51 +99,73 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
    * @param steps the number of steps
    */
   public void train(List<String> observations, int steps) {
-    double forward[][];
-    double backward[][];
+    List<Double[][]> forward;
+    List<Double[][]> backward;
+    int numObservations = observations.size();
 
     double initialP[] = new double[numStates];
     double transitionM[][] = new double[numStates][numStates];
     Map<Pair<Integer, Character>, Double> emissionM = new LinkedHashMap<>();
 
-    for (String observation : observations) {
-      for (int s = 0; s < steps; s++) {
-        /* Calculation of Forward and Backward variables */
-        forward = forwardProc(observation);
-        backward = backwardProc(observation);
+    for (int s = 0; s < steps; s++) {
+      /* Calculation of Forward and Backward variables */
+      forward = forwardProc(observations);
+      backward = backwardProc(observations);
 
-        /* Re-estimation of initial state probabilities */
-        for (int i = 0; i < numStates; i++) initialP[i] = gamma(i, 0, forward, backward);
+      /* Re-estimation of initial state probabilities */
+      for (int i = 0; i < numStates; i++) {
+        for (int k = 0; k < numObservations; k++)
+          initialP[i] += gamma(i, 0, forward.get(k), backward.get(k));
+        initialP[i] = divide(initialP[i], numObservations);
+      }
 
-        /* Re-estimation of transition probabilities */
-        for (int i = 0; i < numStates; i++) {
-          for (int j = 0; j < numStates; j++) {
-            transitionM[i][j] = epsilon(i, j, observation, forward, backward);
+      /* Re-estimation of transition probabilities */
+      for (int i = 0; i < numStates; i++) {
+        for (int j = 0; j < numStates; j++) {
+          double num = 0;
+          double den = 0;
+          for (int k = 0; k < numObservations; k++) {
+            String observation = observations.get(k);
+            int lenObs = observation.length();
+            for (int t = 0; t < lenObs - 1; t++) {
+              num +=
+                  forward.get(k)[i][t]
+                      * transitionMatrix[i][j]
+                      * emissionMatrix.get(
+                          new Pair<Integer, Character>(j, observation.charAt(t + 1)))
+                      * backward.get(k)[j][t + 1];
+              for (int z = 0; z < numStates; z++)
+                den +=
+                    forward.get(k)[i][t]
+                        * transitionMatrix[i][z]
+                        * emissionMatrix.get(
+                            new Pair<Integer, Character>(z, observation.charAt(t + 1)))
+                        * backward.get(k)[z][t + 1];
+            }
           }
+          transitionM[i][j] = divide(num, den);
         }
+      }
 
-        /* Re-estimation of emission probabilities */
-        for (int i = 0; i < numStates; i++) {
-          for (int k = 0; k < sigmaSize; k++) {
-            double num = 0;
-            double denom = 0;
+      /* Re-estimation of emission probabilities */
+      for (int i = 0; i < numStates; i++) {
+        for (int k = 0; k < sigmaSize; k++) {
+          double num = 0;
+          double denom = 0;
+          for (int j = 0; j < numObservations; j++) {
+            String observation = observations.get(j);
             for (int t = 0; t <= observation.length() - 1; t++) {
-              double g = gamma(i, t, forward, backward);
-              //num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
+              double g = gamma(i, t, forward.get(j), backward.get(j));
               num += g * (sigma.get(k).equals(observation.charAt(t)) ? 1 : 0);
               denom += g;
             }
-            double newEmission = divide(num, denom);
-            //emissionsSums[i] = emissionsSums - emissions.get(new Pair<Integer, Character>(i, sigma.get(k)) + newEmission;
-            emissionM.put(
-                new Pair<Integer, Character>(i, sigma.get(k)),
-                divide(newEmission, emissionsSums[i]));
           }
+          emissionM.put(new Pair<Integer, Character>(i, sigma.get(k)), divide(num, denom));
         }
-        initialProbabilities = initialP;
-        transitionMatrix = transitionM;
-        emissionMatrix.putAll(emissionM);
       }
+      initialProbabilities = initialP;
+      transitionMatrix = transitionM;
+      emissionMatrix.putAll(emissionM);
     }
   }
 
@@ -232,36 +253,39 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
    * @param observation the output sequence O
    * @return an array f(i,t) over states and times, containing the Forward-variables.
    */
-  private double[][] forwardProc(String observation) {
-    int lenObs = observation.length();
-    double[][] forward = new double[numStates][lenObs];
-    smooth = new double[lenObs];
+  private List<Double[][]> forwardProc(List<String> observations) {
+    List<Double[][]> forward = new ArrayList<Double[][]>();
 
-    /* Initialization (time 0) */
-    for (int i = 0; i < numStates; i++) {
-      forward[i][0] =
-          initialProbabilities[i]
-              * emissionMatrix.get(new Pair<Integer, Character>(i, observation.charAt(0)));
-      smooth[0] += forward[i][0];
-    }
+    for (String observation : observations) {
+      int lenObs = observation.length();
+      Double forwardI[][] = new Double[numStates][lenObs];
+      Double smoothI[] = new Double[lenObs];
 
-    for (int i = 0; i < numStates; i++) forward[i][0] = divide(forward[i][0], smooth[0]);
-
-    /* Induction */
-    for (int t = 0; t <= lenObs - 2; t++) {
-      for (int j = 0; j < numStates; j++) {
-        forward[j][t + 1] = 0;
-        for (int i = 0; i < numStates; i++)
-          forward[j][t + 1] += (forward[i][t] * transitionMatrix[i][j]);
-        forward[j][t + 1] *=
-            emissionMatrix.get(new Pair<Integer, Character>(j, observation.charAt(t + 1)));
-        smooth[t + 1] += forward[j][t + 1];
+      /* Initialization (time 0) */
+      for (int i = 0; i < numStates; i++) {
+        forwardI[i][0] =
+            initialProbabilities[i]
+                * emissionMatrix.get(new Pair<Integer, Character>(i, observation.charAt(0)));
+        smoothI[0] += forwardI[i][0];
       }
+      for (int i = 0; i < numStates; i++) forwardI[i][0] = divide(forwardI[i][0], smoothI[0]);
 
-      for (int i = 0; i < numStates; i++)
-        forward[i][t + 1] = divide(forward[i][t + 1], smooth[t + 1]);
+      /* Induction */
+      for (int t = 0; t <= lenObs - 2; t++) {
+        for (int j = 0; j < numStates; j++) {
+          forwardI[j][t + 1] = 0.0;
+          for (int i = 0; i < numStates; i++)
+            forwardI[j][t + 1] += (forwardI[i][t] * transitionMatrix[i][j]);
+          forwardI[j][t + 1] *=
+              emissionMatrix.get(new Pair<Integer, Character>(j, observation.charAt(t + 1)));
+          smoothI[t + 1] += forwardI[j][t + 1];
+        }
+        for (int i = 0; i < numStates; i++)
+          forwardI[i][t + 1] = divide(forwardI[i][t + 1], smoothI[t + 1]);
+      }
+      forward.add(forwardI);
+      smooth.add(smoothI);
     }
-
     return forward;
   }
 
@@ -269,66 +293,37 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
    * Calculation of Backward-Variables b(i,t) for state i at time t for output sequence O with the
    * current HiddenMarkovModelCSmoothed parameters
    *
-   * @param observable the output sequence O
+   * @param observation the output sequence O
    * @return an array b(i,t) over states and times, containing the Backward-Variables.
    */
-  private double[][] backwardProc(String observable) {
-    int lenObs = observable.length();
-    double backward[][] = new double[numStates][lenObs];
+  private List<Double[][]> backwardProc(List<String> observations) {
+    List<Double[][]> backward = new ArrayList<Double[][]>();
 
-    /* Initialization (time 0) */
-    for (int i = 0; i < numStates; i++) backward[i][lenObs - 1] = 1;
+    for (int k = 0; k < observations.size(); k++) {
+      String observation = observations.get(k);
+      int lenObs = observation.length();
+      Double backwardI[][] = new Double[numStates][lenObs];
 
-    /* Induction */
-    for (int t = lenObs - 2; t >= 0; t--) {
-      for (int i = 0; i < numStates; i++) {
-        backward[i][t] = 0;
-        for (int j = 0; j < numStates; j++)
-          backward[i][t] +=
-              (backward[j][t + 1]
-                  * transitionMatrix[i][j]
-                  * emissionMatrix.get(new Pair<Integer, Character>(j, observable.charAt(t + 1))));
-        backward[i][t] = divide(backward[i][t], smooth[t + 1]);
+      /* Initialization (time 0) */
+      for (int i = 0; i < numStates; i++) backwardI[i][lenObs - 1] = 1.0;
+
+      /* Induction */
+      for (int t = lenObs - 2; t >= 0; t--) {
+        for (int i = 0; i < numStates; i++) {
+          backwardI[i][t] = 0.0;
+          for (int j = 0; j < numStates; j++)
+            backwardI[i][t] +=
+                (backwardI[j][t + 1]
+                    * transitionMatrix[i][j]
+                    * emissionMatrix.get(
+                        new Pair<Integer, Character>(j, observation.charAt(t + 1))));
+          backwardI[i][t] = divide(backwardI[i][t], smooth.get(k)[t + 1]);
+        }
       }
+      backward.add(backwardI);
     }
 
     return backward;
-  }
-
-  /**
-   * Calculation of probability P(X_t = s_i, X_t+1 = s_j | O, m).
-   *
-   * @param i the number of state s_i
-   * @param j the number of state s_j
-   * @param observation an output sequence o
-   * @param forward the Forward-Variables
-   * @param backward the Backward-Variables
-   * @return epsilon of the state s_i
-   */
-  private double epsilon(
-      int i, int j, String observation, double[][] forward, double[][] backward) {
-    double num = 0;
-    double denom = 0;
-    int lenObs = observation.length();
-
-    for (int t = 0; t < lenObs - 1; t++) {
-      num +=
-          forward[i][t]
-              * transitionMatrix[i][j]
-              * emissionMatrix.get(new Pair<Integer, Character>(j, observation.charAt(t + 1)))
-              * backward[j][t + 1];
-    }
-
-    for (int t = 0; t < lenObs - 1; t++) {
-      for (int k = 0; k < numStates; k++) {
-        denom +=
-            forward[i][t]
-                * transitionMatrix[i][k]
-                * emissionMatrix.get(new Pair<Integer, Character>(k, observation.charAt(t + 1)))
-                * backward[k][t + 1];
-      }
-    }
-    return divide(num, denom);
   }
 
   /**
@@ -340,7 +335,7 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
    * @param backward the Backward-Variable
    * @return gamma of the state s_i
    */
-  private double gamma(int i, int t, double[][] forward, double[][] backward) {
+  private double gamma(int i, int t, Double[][] forward, Double[][] backward) {
     double num = forward[i][t] * backward[i][t];
     double denom = 0;
 
