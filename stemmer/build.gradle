@@ -6,3 +6,11 @@ mainClassName = 'Stemmer'
 dependencies {
     compile project(':core')
 }
+
+version = '1.0.0'
+
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}
