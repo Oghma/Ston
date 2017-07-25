@@ -40,9 +40,6 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
   /** Smoothing variable */
   private List<Double[]> smooth;
 
-  /** Emissions sums */
-  private double emissionsSums[];
-
   /**
    * Initializes an HiddenMarkovModelCSmoothed.
    *
@@ -178,72 +175,53 @@ public class HiddenMarkovModelCSmoothed implements HiddenMarkovModel {
   public String decode(String observation) {
     int lenObs = observation.length();
     double delta[][] = new double[numStates][lenObs];
-    int path[] = new int[lenObs];
-    double maxProb = -100000;
+    int psi[][] = new int[numStates][lenObs];
+    Integer path[] = new Integer[lenObs];
+    double maxProb;
     int stemPosition;
 
-    Arrays.fill(path, -1);
-
-    /* Calculate delta at time 0. At first finds the maxProb */
-    delta[0][0] =
-        Math.log(initialProbabilities[0])
-            + Math.log(emissionMatrix.get(new Pair<Integer, Character>(0, observation.charAt(0))));
-    maxProb = delta[0][0];
-    path[0] = 0;
-    for (int i = 1; i < numStates; i++) {
+    /* Calculate delta at time 0. */
+    for (int i = 0; i < numStates; i++) {
       delta[i][0] =
           Math.log(initialProbabilities[i])
               + Math.log(
                   emissionMatrix.get(new Pair<Integer, Character>(i, observation.charAt(0))));
-      if (delta[i][0] > maxProb) {
-        path[0] = i;
-        maxProb = delta[i][0];
-      }
+      psi[i][0] = 0;
     }
 
     /* Induction */
     for (int t = 1; t < lenObs; t++) {
-      delta[0][t] =
-          delta[0][t - 1]
-              + Math.log(transitionMatrix[0][0])
-              + Math.log(
-                  emissionMatrix.get(new Pair<Integer, Character>(0, observation.charAt(t))));
-      path[t] = 0;
-      for (int i = 1; i < numStates; i++) {
-        double prob =
-            delta[i][t - 1]
-                + Math.log(transitionMatrix[i][0])
-                + Math.log(
-                    emissionMatrix.get(new Pair<Integer, Character>(0, observation.charAt(t))));
-        if (prob > delta[0][t]) {
-          delta[0][t] = prob;
-        }
-      }
-      maxProb = delta[0][t];
-      path[t] = 0;
-
-      for (int j = 1; j < numStates; j++) {
-        delta[j][t] =
-            delta[0][t - 1]
-                + Math.log(transitionMatrix[0][j])
-                + Math.log(
-                    emissionMatrix.get(new Pair<Integer, Character>(j, observation.charAt(t))));
-        for (int i = 1; i < numStates; i++) {
-          double prob =
-              delta[i][t - 1]
-                  + Math.log(transitionMatrix[i][j])
-                  + Math.log(
-                      emissionMatrix.get(new Pair<Integer, Character>(j, observation.charAt(t))));
-          if (prob > delta[j][t]) {
-            delta[j][t] = prob;
+      for (int j = 0; j < numStates; j++) {
+        maxProb = Double.NEGATIVE_INFINITY;
+        for (int k = 0; k < numStates; k++) {
+          double prob = delta[k][t - 1] + Math.log(transitionMatrix[k][j]);
+          if (prob > maxProb) {
+            maxProb = prob;
+            psi[j][t] = k;
           }
         }
-        if (delta[j][t] > maxProb) path[t] = j;
+        delta[j][t] =
+            maxProb
+                + Math.log(
+                    emissionMatrix.get(new Pair<Integer, Character>(j, observation.charAt(t))));
       }
     }
 
+    /* Termination */
+    maxProb = Double.NEGATIVE_INFINITY;
+    for (int i = 0; i < numStates; i++)
+      if (delta[i][lenObs - 1] > maxProb) {
+        maxProb = delta[i][lenObs - 1];
+        path[lenObs - 1] = i;
+      }
+
+    /* Calculates the path backtracking */
+    for (int t = lenObs - 2; t >= 0; t--) {
+      path[t] = psi[path[t + 1]][t + 1];
+    }
+
     stemPosition = Arrays.asList(path).indexOf(numPrefixes);
-    return stemPosition != -1 ? observation.substring(0, numPrefixes) : observation;
+    return stemPosition != -1 ? observation.substring(0, stemPosition) : observation;
   }
 
   /**
