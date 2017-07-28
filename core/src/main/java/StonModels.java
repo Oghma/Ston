@@ -8,8 +8,17 @@ public class StonModels {
     HiddenMarkovModel hmm = null;
     switch (topology) {
       case "A":
+        hmm =
+            smoothed == true
+                ? new HiddenMarkovModelASmoothed(numPrefixes, numSuffixes, sigma)
+                : new HiddenMarkovModelA(numPrefixes, numSuffixes, sigma);
         break;
       case "B":
+        hmm =
+            smoothed == true
+                ? new HiddenMarkovModelBSmoothed(numPrefixes, numSuffixes, sigma)
+                : new HiddenMarkovModelB(numPrefixes, numSuffixes, sigma);
+
         break;
       case "C":
         hmm =
