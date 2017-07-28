@@ -13,6 +13,9 @@ public class HiddenMarkovModelBSmoothed extends StonHiddenMarkovModelSmoothed {
   /** Contain the final states of the chain */
   private List<Integer> finalStates;
 
+  /** Serial version UID generated with serialver */
+  private static final long serialVersionUID = 6776293121628683935L;
+
   /**
    * Initializes an HiddenMarkovModelBSmoothed.
    *

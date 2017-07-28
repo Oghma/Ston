@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class HiddenMarkovModelCSmoothed extends StonHiddenMarkovModelSmoothed {
+  /** Serial version UID generated with serialver */
+  private static final long serialVersionUID = -9079231144980751766L;
+
   /**
    * Initializes an HiddenMarkovModelCSmoothed.
    *

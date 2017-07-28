@@ -40,6 +40,8 @@ public abstract class StonHiddenMarkovModelSmoothed implements HiddenMarkovModel
   /** Smoothing variable */
   protected List<Double[]> smooth;
 
+  /** Serial version UID generated with serialver */
+  private static final long serialVersionUID = -383347686438850352L;
   /**
    * Trains the Hidden Markov Model using the Baum-Welch Algorithms.
    *

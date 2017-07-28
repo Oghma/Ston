@@ -37,6 +37,8 @@ public abstract class StonHiddenMarkovModel implements HiddenMarkovModel {
   /** Emission probabilities */
   protected Map<Pair<Integer, Character>, Double> emissionMatrix;
 
+  /** Serial version UID generated with serialver */
+  private static final long serialVersionUID = 6275241988080439412L;
   /**
    * Trains the Hidden Markov Model using the Baum-Welch Algorithms.
    *

@@ -15,6 +15,9 @@ public class HiddenMarkovModelA extends StonHiddenMarkovModel {
   /** Contain the final states of the chain */
   private List<Integer> finalStates;
 
+  /** Serial version UID generated with serialver */
+  private static final long serialVersionUID = -7464281937313646046L;
+
   /**
    * Initializes an HiddenMarkovModelA.
    *
