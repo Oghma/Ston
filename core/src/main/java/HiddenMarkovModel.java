@@ -26,7 +26,7 @@ public interface HiddenMarkovModel extends Serializable {
   }
 
   public static void save(HiddenMarkovModel hmm, String path) {
-    try (FileOutputStream outputFile = new FileOutputStream("model.data");
+    try (FileOutputStream outputFile = new FileOutputStream(path);
         ObjectOutputStream saveModel = new ObjectOutputStream(outputFile)) {
       saveModel.writeObject(hmm);
     } catch (IOException e) {
