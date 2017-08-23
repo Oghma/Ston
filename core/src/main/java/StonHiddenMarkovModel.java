@@ -60,7 +60,6 @@ public abstract class StonHiddenMarkovModel implements HiddenMarkovModel {
 
     double initialP[] = new double[numStates];
     double transitionM[][] = new double[numStates][numStates];
-    Map<Pair<Integer, Character>, Double> emissionM = new LinkedHashMap<>();
 
     for (int s = 0; s < steps; s++) {
       /* Calculation of Forward and Backward variables */
@@ -103,12 +102,11 @@ public abstract class StonHiddenMarkovModel implements HiddenMarkovModel {
               denom += g;
             }
           }
-          emissionM.put(new Pair<>(i, sigma.get(k)), divide(num, denom));
+          emissionMatrix.put(new Pair<>(i, sigma.get(k)), divide(num, denom));
         }
       }
       initialProbabilities = initialP;
       transitionMatrix = transitionM;
-      emissionMatrix.putAll(emissionM);
     }
   }
 
