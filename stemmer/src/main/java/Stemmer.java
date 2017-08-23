@@ -32,7 +32,7 @@ public class Stemmer {
         System.out.println("Hmm loaded");
 
         System.out.println("Starting decoding");
-        stemmed = stem.stream().map(w -> hmm.decode(w)).collect(Collectors.toList());
+        stemmed = stem.stream().map(w -> w + "\t" + hmm.decode(w)).collect(Collectors.toList());
         System.out.println("Words stemmed");
 
         try {
