@@ -180,7 +180,7 @@ public abstract class StonHiddenMarkovModelSmoothed implements HiddenMarkovModel
       path[t] = psi[path[t + 1]][t + 1];
     }
 
-    stemPosition = Arrays.asList(path).indexOf(numPrefixes);
+    stemPosition = Arrays.asList(path).indexOf(numPrefixes - 1);
     return stemPosition != -1 ? observation.substring(0, stemPosition) : observation;
   }
 
